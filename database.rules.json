@@ -1,0 +1,11 @@
+{
+  "rules": {
+    "reviews": {
+      ".read": true,
+      "$reviewId": {
+        ".write": "!data.exists() && newData.child('approved').val() === false",
+        ".validate": "newData.hasChildren(['name','rating','text','approved','createdAt']) && newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('text').isString() && newData.child('text').val().length <= 1000 && newData.child('rating').isNumber() && newData.child('rating').val() >= 1 && newData.child('rating').val() <= 5"
+      }
+    }
+  }
+}

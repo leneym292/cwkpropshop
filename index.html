@@ -222,24 +222,23 @@ footer .footer-bow svg{width:42px;height:18px;display:block;filter:drop-shadow(0
 </section>
 <footer><p class="footer-line"><span class="footer-brand">CWK Prop Shop & Events</span><span class="footer-bow" aria-hidden="true"><svg viewBox="0 0 120 58" role="img"><path d="M55 29 C43 12 24 8 5 13 L19 29 L5 45 C25 50 43 45 55 29Z" fill="white" opacity="0.96"/><path d="M65 29 C77 12 96 8 115 13 L101 29 L115 45 C95 50 77 45 65 29Z" fill="white" opacity="0.96"/><ellipse cx="60" cy="29" rx="11" ry="14" fill="white" opacity="0.98"/></svg></span><span class="footer-sub">Party Stylist & Prop Curator · Carrie Kuncken</span></p></footer>
 <script type="module">
-  // STEP 1: Create a free Firebase project.
-  // STEP 2: Replace the placeholder values below with your Firebase Web App config.
-  // STEP 3: Create a Firestore collection named "reviews".
-
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  // Firebase Realtime Database review system for CWK Prop Shop & Events
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+  import { getDatabase, ref, push, query, orderByChild, equalTo, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
   const firebaseConfig = {
-    apiKey: "PASTE_YOUR_API_KEY_HERE",
-    authDomain: "PASTE_YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "PASTE_YOUR_PROJECT_ID",
-    storageBucket: "PASTE_YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "PASTE_YOUR_SENDER_ID",
-    appId: "PASTE_YOUR_APP_ID"
+    apiKey: "AIzaSyD9dxOEw_Ued2ueh0uovDhtV9gP4b4Q7ek",
+    authDomain: "cwk-prop-shop-reviews.firebaseapp.com",
+    databaseURL: "https://cwk-prop-shop-reviews-default-rtdb.firebaseio.com",
+    projectId: "cwk-prop-shop-reviews",
+    storageBucket: "cwk-prop-shop-reviews.firebasestorage.app",
+    messagingSenderId: "210049322796",
+    appId: "1:210049322796:web:ec7a7016249d95f24f6689",
+    measurementId: "G-G3MRSESNSQ"
   };
 
   const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  const db = getDatabase(app);
 
   const form = document.getElementById('reviewForm');
   const list = document.getElementById('addedReviews');
@@ -250,30 +249,35 @@ footer .footer-bow svg{width:42px;height:18px;display:block;filter:drop-shadow(0
   }
 
   function stars(rating) {
-    const n = Number(rating || 5);
+    const n = Math.max(1, Math.min(5, Number(rating || 5)));
     return '★'.repeat(n) + '☆'.repeat(5 - n);
   }
 
   const approvedReviewsQuery = query(
-    collection(db, 'reviews'),
-    where('approved', '==', true),
-    orderBy('createdAt', 'desc')
+    ref(db, 'reviews'),
+    orderByChild('approved'),
+    equalTo(true)
   );
 
-  onSnapshot(approvedReviewsQuery, (snapshot) => {
+  onValue(approvedReviewsQuery, (snapshot) => {
     if (!list) return;
-    if (snapshot.empty) {
+    if (!snapshot.exists()) {
       list.innerHTML = '';
       return;
     }
-    list.innerHTML = snapshot.docs.map(doc => {
-      const r = doc.data();
-      return `<div class="added-review">
-        <strong>${escapeHtml(r.name)}</strong>${r.eventType ? ` · ${escapeHtml(r.eventType)}` : ''}<br>
-        <span style="color:var(--gold);letter-spacing:.08em">${stars(r.rating)}</span><br>
-        ${escapeHtml(r.text)}
-      </div>`;
-    }).join('');
+
+    const reviews = [];
+    snapshot.forEach(child => {
+      reviews.push({ id: child.key, ...child.val() });
+    });
+
+    reviews.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    list.innerHTML = reviews.map(r => `<div class="added-review">
+      <strong>${escapeHtml(r.name)}</strong>${r.eventType ? ` · ${escapeHtml(r.eventType)}` : ''}<br>
+      <span style="color:var(--gold);letter-spacing:.08em">${stars(r.rating)}</span><br>
+      ${escapeHtml(r.text)}
+    </div>`).join('');
   }, (error) => {
     if (list) list.innerHTML = '<div class="added-review">Reviews are being set up. Please check back soon.</div>';
     console.error(error);
@@ -284,16 +288,16 @@ footer .footer-bow svg{width:42px;height:18px;display:block;filter:drop-shadow(0
       e.preventDefault();
       const name = document.getElementById('reviewName').value.trim();
       const eventType = document.getElementById('reviewEvent').value.trim();
-      const rating = document.getElementById('reviewRating').value;
-      const text = document.getElementById('reviewText').value.trim();
-      if (!name || !rating || !text) return;
+      const rating = Number(document.getElementById('reviewRating').value);
+      const reviewText = document.getElementById('reviewText').value.trim();
+      if (!name || !rating || !reviewText) return;
 
       try {
-        await addDoc(collection(db, 'reviews'), {
+        await push(ref(db, 'reviews'), {
           name,
           eventType,
-          rating: Number(rating),
-          text,
+          rating,
+          text: reviewText,
           approved: false,
           createdAt: serverTimestamp()
         });
