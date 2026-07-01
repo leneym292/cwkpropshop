@@ -13,3 +13,6 @@ Copy the contents of `database.rules.json` into Firebase > Realtime Database > R
 New reviews save with `approved: false`.
 To approve one, open Firebase > Realtime Database > Data > reviews, click the review, and change `approved` from `false` to `true`.
 Approved reviews automatically appear on the website.
+
+
+Update: Added a Graduations category and graduation party image gallery using local image files in assets/graduations/.
